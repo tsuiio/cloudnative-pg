@@ -1,0 +1,164 @@
+name: Build and Push Docker Images
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "versions.yaml"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/postgresql
+
+jobs:
+  configure:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.get-versions.outputs.result }}
+    steps:
+      - name: Checkout to repository
+        uses: actions/checkout@v4
+      - name: Get dependency versions
+        uses: mikefarah/yq@v4
+        id: get-versions
+        with:
+          cmd: yq eval -o=json -I=0 versions.yaml
+
+  build:
+    runs-on: ${{ matrix.os }}
+    needs: configure
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        cnpg: ${{ fromJson(needs.configure.outputs.version).cnpg }}
+        include:
+          - os: ubuntu-24.04
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set major postgres version
+        id: version
+        run: |
+          pg_major=$(echo ${{ matrix.cnpg }} | cut -d'.' -f1)
+          echo "pg_major=$pg_major" >> "$GITHUB_OUTPUT"
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CNPG_TAG=${{ matrix.cnpg }}
+            PG_MAJOR=${{ steps.version.outputs.pg_major }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.cnpg }}-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-24.04
+    needs:
+      - build
+      - configure
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        cnpg: ${{ fromJson(needs.configure.outputs.version).cnpg }}
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ matrix.cnpg }}-*
+          merge-multiple: true
+
+      - name: Login
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set major postgres version
+        id: version
+        run: |
+          pg_major=$(echo ${{ matrix.cnpg }} | cut -d'.' -f1)
+          echo "pg_major=$pg_major" >> "$GITHUB_OUTPUT"
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          flavor: |
+            latest=false
+          images: ${{ env.REGISTRY  }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,type=raw,value=${{ matrix.cnpg }}
+            type=raw,value=${{ steps.version.outputs.pg_major }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+          $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Retrieve image
+        id: retrieve-image
+        run: echo "value=$(echo "$DOCKER_METADATA_OUTPUT_JSON" | jq -r '.tags[1]')" >> $GITHUB_OUTPUT
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ steps.retrieve-image.outputs.value }}
