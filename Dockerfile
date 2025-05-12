@@ -1,4 +1,4 @@
-ARG CNPG_TAG=17.4-bookworm
+ARG CNPG_TAG=17.5-bookworm
 
 FROM ghcr.io/cloudnative-pg/postgresql:${CNPG_TAG}
 
