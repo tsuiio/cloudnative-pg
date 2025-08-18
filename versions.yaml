@@ -1,5 +1,5 @@
 cnpg:
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "17.5-bookworm"
+  - "17.6-bookworm"
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "16.9-bookworm"
+  - "16.10-bookworm"
