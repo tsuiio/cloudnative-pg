@@ -13,8 +13,7 @@
             ],
             "matchStrings": [
                 "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n.*?\"(?<currentValue>.*)\"\\n"
-            ],
-            "versioningTemplate": "^(?<major>\\d+)\\.(?<minor>\\d+)(?:-(?<patch>\\d+))?(?:-(?<compatibility>.+))?$"
+            ]
         }
     ],
     "packageRules": [
@@ -32,6 +31,12 @@
                 "ghcr.io/cloudnative-pg/postgresql"
             ],
             "groupName": "postgresql"
+        },
+        {
+            "matchPackageNames": [
+                "ghcr.io/cloudnative-pg/postgresql"
+            ],
+            "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:-(?<patch>\\d+))?(?:-(?<compatibility>.+))?$"
         }
     ]
 }
