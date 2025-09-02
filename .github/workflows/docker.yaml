@@ -84,10 +84,17 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ github.ref == 'refs/heads/main' }}
           build-args: |
             CNPG_TAG=${{ matrix.cnpg }}
             PG_MAJOR=${{ steps.version.outputs.pg_major }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true
+
+      - name: Skip remaining steps if not main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Skipping digest processing and upload for non-main branch"
+          exit 0
 
       - name: Export digest
         run: |
@@ -105,6 +112,7 @@ jobs:
 
   merge:
     runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
     needs:
       - build
       - configure
