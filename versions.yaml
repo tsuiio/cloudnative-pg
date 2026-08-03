@@ -1,13 +1,13 @@
 cnpg:
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "16.14-202607270908-system-bookworm"
+  - "16.14-202608030910-system-bookworm"
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "17.10-202607271318-system-bookworm"
+  - "17.10-202608030910-system-bookworm"
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "18.4-202607270910-system-bookworm"
+  - "18.4-202608030910-system-bookworm"
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "16.14-202607270908-system-trixie"
+  - "16.14-202608030910-system-trixie"
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "17.10-202607271318-system-trixie"
+  - "17.10-202608030910-system-trixie"
   # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/postgresql
-  - "18.4-202607270910-system-trixie"
+  - "18.4-202608030910-system-trixie"
