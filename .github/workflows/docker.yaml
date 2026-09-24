@@ -12,7 +12,7 @@ env:
 
 jobs:
   configure:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       version: ${{ steps.get-versions.outputs.result }}
     steps:
@@ -111,7 +111,7 @@ jobs:
           retention-days: 1
 
   merge:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.ref == 'refs/heads/main'
     needs:
       - build
